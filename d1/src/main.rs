@@ -18,24 +18,18 @@ const TEST: &str = r#"
 10000
 "#;
 
-// itertools has a `k_largest` PR, maybe I want a `parsed` iterator too
+// itertools has a `k_largest` PR, maybe I want a `parsed` iterator too.
+// also maybe a non annoying group_by.
 fn main() {
     let x = REAL
         .lines()
-        // an empty string splits each group, then ditch the keys
-        .group_by(|x| !x.is_empty())
+        .map(<u32 as FromStr>::from_str)
+        // only empty lines can be parse failures right
+        .group_by(|x| x.is_ok())
         .into_iter()
-        .filter(|(non_empty, _v)| *non_empty)
-        .map(|(_k, v)| v)
-        // now parse the strings in each group
-        .map(|group| {
-            group
-                .map(|number| number.parse::<u32>().unwrap())
-                .sum::<u32>()
-        })
+        .filter(|(is_ok, _)| *is_ok)
         // now we can actually do the task
-        .sorted()
-        .into_iter()
+        .map(|(_, group)| group.map(|value| value.unwrap()).sum::<u32>())
         .k_largest(3)
         .sum::<u32>();
     println!("{:?}", x);
