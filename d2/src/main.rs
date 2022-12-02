@@ -29,9 +29,9 @@ fn main() {
     let p1: i32 = REAL
         .lines()
         .map(|line| {
-            let mut chars = line.bytes();
-            let theirs = parse_theirs(chars.nth(0).unwrap());
-            let ours = parse_ours(chars.nth(1).unwrap());
+            let chars = line.as_bytes();
+            let theirs = parse_theirs(chars[0]);
+            let ours = parse_ours(chars[2]);
             (match theirs.partial_cmp(&ours) {
                 Some(Ordering::Equal) => 3,
                 Some(Ordering::Less) => 6,
@@ -44,10 +44,10 @@ fn main() {
     let p2: i32 = REAL
         .lines()
         .map(|line| {
-            let mut chars = line.bytes();
-            let theirs_discrim = chars.nth(0).unwrap() - b'A';
-            let modifier = chars.nth(1).unwrap() as i32 - 'Y' as i32; // x=-1,y=0,z=1
-            let ours_discrim = (theirs_discrim as i32 + modifier).rem_euclid(3); // rot for win or lose
+            let chars = line.as_bytes();
+            let theirs = chars[0] - b'A';
+            let modifier = chars[2] as i32 - 'Y' as i32; // x=-1,y=0,z=1
+            let ours_discrim = (theirs as i32 + modifier).rem_euclid(3); // rot for win or lose
             let score = (modifier + 1) * 3; // x=0,y=3,z=6
             score + ours_discrim + 1
         })
