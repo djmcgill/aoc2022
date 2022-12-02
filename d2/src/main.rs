@@ -41,15 +41,16 @@ fn main() {
         })
         .sum();
 
-    let p2: i32 = REAL
-        .lines()
-        .map(|line| {
-            let chars = line.as_bytes();
-            let theirs = (chars[0] - b'A') as i32; // a=0,b=1,c=2
-            let modifier = (chars[2] - b'X') as i32; // x=0,y=1,z=2
-            let ours_discrim = (theirs - 1 + modifier).rem_euclid(3); // rot for win or lose
+    let p2: u32 = REAL
+        .as_bytes()
+        .chunks(4) // thanks fixed width lines
+        .map(|chars| {
+            let theirs = chars[0] - b'A'; // a=0,b=1,c=2
+            let ours = chars[2] - b'X'; // x=0,y=1,z=2
+            let modifier = ours+2; // x-1,y=0,z=1 modulo 3
+            let ours_discrim = (theirs + modifier) % 3; // rot for win or lose
             let score = modifier * 3; // x=0,y=3,z=6
-            score + ours_discrim + 1
+            (score + ours_discrim + 1) as u32
         })
         .sum();
 
