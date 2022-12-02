@@ -45,10 +45,10 @@ fn main() {
         .lines()
         .map(|line| {
             let chars = line.as_bytes();
-            let theirs = chars[0] - b'A';
-            let modifier = chars[2] as i32 - 'Y' as i32; // x=-1,y=0,z=1
-            let ours_discrim = (theirs as i32 + modifier).rem_euclid(3); // rot for win or lose
-            let score = (modifier + 1) * 3; // x=0,y=3,z=6
+            let theirs = (chars[0] - b'A') as i32; // a=0,b=1,c=2
+            let modifier = (chars[2] - b'X') as i32; // x=0,y=1,z=2
+            let ours_discrim = (theirs - 1 + modifier).rem_euclid(3); // rot for win or lose
+            let score = modifier * 3; // x=0,y=3,z=6
             score + ours_discrim + 1
         })
         .sum();
