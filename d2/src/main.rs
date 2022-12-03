@@ -44,23 +44,19 @@ fn main() {
     let p1: u32 = REAL.as_bytes().chunks(4).map(|chars| {
         let theirs = chars[0] - b'A'; // a=0,b=1,c=2
         let ours = chars[2] - b'X'; // x=0,y=1,z=2
-        let diff = (4 + ours - theirs) % 3; // l=0,d=1,w=2
-        let score = diff*3;
-        (score + ours + 1) as u32
-    }).sum();
+        let goal = (4 + ours - theirs) % 3; // l=0,d=1,w=2
+        (goal * 3 + ours + 1) as u32
+    })
+    .sum();
 
-    let p2: u32 = REAL
-        .as_bytes()
-        .chunks(4) // thanks fixed width lines
-        .map(|chars| {
-            let theirs = chars[0] - b'A'; // a=0,b=1,c=2
-            let goal = chars[2] - b'X'; // x=0,y=1,z=2
-            let modifier = goal+2; // x-1,y=0,z=1 modulo 3
-            let ours = (theirs + modifier) % 3; // rot for win or lose
-            let score = modifier * 3; // x=0,y=3,z=6
-            (score + ours + 1) as u32
-        })
-        .sum();
+    let p2: u32 = REAL.as_bytes().chunks(4).map(|chars| {
+        let theirs = chars[0] - b'A'; // a=0,b=1,c=2
+        let goal = chars[2] - b'X'; // x=0,y=1,z=2
+        let modifier = goal + 2; // x=-1,y=0,z=1 modulo 3
+        let ours = (theirs + modifier) % 3; // rot for win or lose
+        (goal * 3 + ours + 1) as u32
+    })
+    .sum();
 
     println!("{} {}", p1, p2);
 }

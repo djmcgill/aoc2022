@@ -6,3 +6,18 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+
+[dev-dependencies]
+criterion = "0.3"
+
+[lib]
+bench = false
+
+[[bin]]
+name = "d3"
+path = "src/main.rs"
+bench = false
+
+[[bench]]
+name = "benches"
+harness = false
