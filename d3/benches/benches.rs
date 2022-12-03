@@ -16,6 +16,10 @@ pub fn p1_benchmark(c: &mut Criterion) {
     c.bench_function("p1_array_filter_byteset", |b| {
         b.iter(|| p1_array_filter_byteset(black_box(REAL)))
     });
+
+    c.bench_function("p1_array_filter_byteset_unsafe", |b| {
+        b.iter(|| p1_array_filter_byteset_unsafe(black_box(REAL)))
+    });
 }
 
 pub fn p2_benchmark(c: &mut Criterion) {
@@ -32,6 +36,12 @@ pub fn p2_benchmark(c: &mut Criterion) {
 
     c.bench_function("p2_array_filter_byteset", |b| {
         b.iter(|| p2_array_filter_byteset(black_box(REAL)))
+    });
+    c.bench_function("p2_array_filter_byteset_2", |b| {
+        b.iter(|| p2_array_filter_byteset_2(black_box(REAL)))
+    });
+    c.bench_function("p2_array_filter_byteset_unsafe", |b| {
+        b.iter(|| p2_array_filter_byteset_unsafe(black_box(REAL)))
     });
 }
 

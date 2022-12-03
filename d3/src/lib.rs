@@ -1,5 +1,10 @@
 #![feature(iter_array_chunks)]
-use std::collections::{hash_map::RandomState, BTreeSet, HashSet};
+#![feature(unchecked_math)]
+#![feature(slice_split_at_unchecked)]
+use std::{
+    collections::{hash_map::RandomState, BTreeSet, HashSet},
+    hint::unreachable_unchecked,
+};
 
 pub fn p1_btreeset(input: &str) -> u32 {
     input
@@ -83,6 +88,31 @@ pub fn p1_array_filter_byteset(input: &str) -> u32 {
             unreachable!()
         })
         .sum()
+}
+
+pub fn p1_array_filter_byteset_unsafe(input: &str) -> u32 {
+    unsafe {
+        input
+            .lines()
+            .map(|line| {
+                let bytes = line.as_bytes();
+                let count = bytes.len();
+
+                // [A..Z] \[ \\ \] ^ _ ` [a..z]
+                let mut values = [false; 58];
+                let halves = bytes.split_at_unchecked(count.unchecked_shr(1));
+                for x in halves.0 {
+                    *values.get_unchecked_mut(x.unchecked_sub(b'A') as usize) = true;
+                }
+                for x in halves.1 {
+                    if *values.get_unchecked(x.unchecked_sub(b'A') as usize) {
+                        return priority_unsafe(*x) as u32;
+                    }
+                }
+                unreachable_unchecked()
+            })
+            .sum()
+    }
 }
 
 pub fn p2_btreeset(input: &str) -> u32 {
@@ -189,6 +219,52 @@ pub fn p2_array_filter_byteset(input: &str) -> u32 {
         .sum()
 }
 
+pub fn p2_array_filter_byteset_2(input: &str) -> u32 {
+    input
+        .lines()
+        .array_chunks::<3>()
+        .map(|chunk| {
+            let mut values = [0u8; 58];
+            for x in chunk[0].as_bytes() {
+                values[(*x - b'A') as usize] |= 1;
+            }
+            for x in chunk[1].as_bytes() {
+                values[(*x - b'A') as usize] |= 2;
+            }
+            for x in chunk[2].as_bytes() {
+                if values[(*x - b'A') as usize] == 3 {
+                    return priority(*x) as u32;
+                }
+            }
+            unreachable!()
+        })
+        .sum()
+}
+
+pub fn p2_array_filter_byteset_unsafe(input: &str) -> u32 {
+    unsafe {
+        input
+            .lines()
+            .array_chunks::<3>()
+            .map(|chunk| {
+                let mut values = [0u8; 58];
+                for x in chunk.get_unchecked(0).as_bytes() {
+                    *values.get_unchecked_mut((x.unchecked_sub(b'A')) as usize) |= 1;
+                }
+                for x in chunk.get_unchecked(1).as_bytes() {
+                    *values.get_unchecked_mut((x.unchecked_sub(b'A')) as usize) |= 2;
+                }
+                for x in chunk.get_unchecked(2).as_bytes() {
+                    if *values.get_unchecked((x.unchecked_sub(b'A')) as usize) == 3 {
+                        return priority_unsafe(*x) as u32;
+                    }
+                }
+                unreachable_unchecked()
+            })
+            .sum()
+    }
+}
+
 #[derive(Default)]
 struct IdentityByteHasherBuilder;
 impl std::hash::BuildHasher for IdentityByteHasherBuilder {
@@ -240,6 +316,27 @@ fn priority(c: u8) -> u8 {
     x + 1
 }
 
+// maps: [A..Z] \[ \\ \] ^   _  ` [a..z]
+// to: [27..52] 53 54 55 56 57 58 [1..26]
+#[inline(always)]
+unsafe fn priority_unsafe(c: u8) -> u8 {
+    // maps: [A..Z] \[ \\ \] ^   _  ` [a..z]
+    // to:  [0..25] 26 27 28 29 30 31 [32..58]
+    // let x = c.unchecked_sub(b'A');
+
+    // maps: [A..Z] \[ \\ \] ^   _  ` [a..z]
+    // to:  [26..51] 52 53 54 55 56 57 [58..84]
+    let x = c.unchecked_sub(b'A' - 26);
+
+    // maps: [A..Z] \[ \\ \] ^   _  ` [a..z]
+    // to:  [26..51] 52 53 54 55 56 57 [0..25]
+    let x = x % 58;
+
+    // maps: [A..Z] \[ \\ \] ^   _  ` [a..z]
+    // to:  [27..52] 53 54 55 56 57 58 [1..26]
+    x.unchecked_add(1)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -252,6 +349,7 @@ mod tests {
         assert_eq!(ans, p1_hashset_identityhash(TEST));
         assert_eq!(ans, p1_hashset_identityhash_manual(TEST));
         assert_eq!(ans, p1_array_filter_byteset(TEST));
+        assert_eq!(ans, p1_array_filter_byteset_unsafe(TEST));
     }
 
     #[test]
@@ -262,6 +360,8 @@ mod tests {
         assert_eq!(ans, p2_hashset_identityhash(TEST));
         assert_eq!(ans, p2_hashset_identityhash_manual(TEST));
         assert_eq!(ans, p2_array_filter_byteset(TEST));
+        assert_eq!(ans, p2_array_filter_byteset_2(TEST));
+        assert_eq!(ans, p2_array_filter_byteset_unsafe(TEST));
     }
 
     #[test]
@@ -272,6 +372,7 @@ mod tests {
         assert_eq!(ans, p1_hashset_identityhash(REAL));
         assert_eq!(ans, p1_hashset_identityhash_manual(REAL));
         assert_eq!(ans, p1_array_filter_byteset(REAL));
+        assert_eq!(ans, p1_array_filter_byteset_unsafe(REAL));
     }
 
     #[test]
@@ -282,6 +383,8 @@ mod tests {
         assert_eq!(ans, p2_hashset_identityhash(REAL));
         assert_eq!(ans, p2_hashset_identityhash_manual(REAL));
         assert_eq!(ans, p2_array_filter_byteset(REAL));
+        assert_eq!(ans, p2_array_filter_byteset_2(REAL));
+        assert_eq!(ans, p2_array_filter_byteset_unsafe(REAL));
     }
 
     #[test]
