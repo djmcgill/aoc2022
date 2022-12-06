@@ -92,26 +92,26 @@ pub fn p1_array_filter_byteset(input: &str) -> u32 {
 
 pub fn p1_array_filter_byteset_unsafe(input: &str) -> u32 {
     unsafe {
-        input
-            .lines()
-            .map(|line| {
-                let bytes = line.as_bytes();
-                let count = bytes.len();
+        let mut sum = 0u32;
+        'outer: for line in input.lines() {
+            let bytes = line.as_bytes();
+            let count = bytes.len();
 
-                // [A..Z] \[ \\ \] ^ _ ` [a..z]
-                let mut values = [false; 58];
-                let halves = bytes.split_at_unchecked(count.unchecked_shr(1));
-                for x in halves.0 {
-                    *values.get_unchecked_mut(x.unchecked_sub(b'A') as usize) = true;
+            // [A..Z] \[ \\ \] ^ _ ` [a..z]
+            let mut values = [false; 58];
+            let halves = bytes.split_at_unchecked(count.unchecked_shr(1));
+            for x in halves.0 {
+                *values.get_unchecked_mut(x.unchecked_sub(b'A') as usize) = true;
+            }
+            for x in halves.1 {
+                if *values.get_unchecked(x.unchecked_sub(b'A') as usize) {
+                    sum = sum.unchecked_add(priority_unsafe(*x) as u32);
+                    continue 'outer;
                 }
-                for x in halves.1 {
-                    if *values.get_unchecked(x.unchecked_sub(b'A') as usize) {
-                        return priority_unsafe(*x) as u32;
-                    }
-                }
-                unreachable_unchecked()
-            })
-            .sum()
+            }
+            unreachable_unchecked()
+        }
+        sum
     }
 }
 
