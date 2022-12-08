@@ -1,5 +1,5 @@
-use std::iter::Peekable;
 use scanf::sscanf;
+use std::{iter::Peekable, time::Instant};
 
 #[derive(Debug)]
 enum FileEntry {
@@ -13,14 +13,21 @@ struct DirectoryEntry {
 }
 
 fn main() {
+    let start = Instant::now();
     let mut file_system = DirectoryEntry::default();
     parse_line(&mut REAL.lines().peekable(), &mut file_system);
     file_system.size = sum_contents(&file_system);
 
     let p1 = sum_under_10k(&file_system);
+    let p1_time = Instant::now();
     let needed_space = file_system.size - 40_000_000;
     let p2 = find_smallest_dir_over_n(&file_system, needed_space);
+    let p2_time = Instant::now();
     println!("{} {}", p1, p2);
+    // p1: 296.8µs
+    // p2: 6µs
+    println!("p1: {:?}", p1_time - start);
+    println!("p2: {:?}", p2_time - p1_time);
 }
 
 fn sum_contents(f: &DirectoryEntry) -> u64 {
@@ -82,7 +89,7 @@ fn parse_line<'a>(
     }
 }
 
-// TODO: calculate the answers in sitchu rather than populating DirectoryEntries
+// TODO: calculate the answers in-situ rather than populating DirectoryEntries
 fn cd_foo<'a>(lines: &mut Peekable<impl Iterator<Item = &'a str>>, dir_entry: &mut DirectoryEntry) {
     let _ = lines.next(); // ditch "cd foo"
     dir_entry
