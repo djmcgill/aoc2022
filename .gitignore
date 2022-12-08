@@ -1,2 +1,8 @@
 **/target
+real.txt
+test.txt
 
+
+# Added by cargo
+
+/target
