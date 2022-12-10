@@ -111,30 +111,63 @@ fn main() {
 
         // okay to do the same optimisation here, each move changes what the _next_ valid
         // move is
-        let (x_mod, y_mod) = match bytes[0] {
-                b'U'=> {(0, 1)}
-                b'D'=> {(0, -1)}
-                b'L'=> {(-1, 0)}
-                _ /* 'R' */ => {(1, 0)}
-            };
-
-        for _ in 0..n {
-            rope[0].0 += x_mod;
-            rope[0].1 += y_mod;
-
-            // FIXME: this is broke lol
-            // match bytes[0] {
-            //     b'U' => step_up_p2(rope[0].0, rope[0].1, &mut rope[1..]),
-            //     b'D' => step_down_p2(rope[0].0, rope[0].1, &mut rope[1..]),
-            //     b'L' => step_left_p2(rope[0].0, rope[0].1, &mut rope[1..]),
-            //     _ => step_right_p2(rope[0].0, rope[0].1, &mut rope[1..]),
-            // }
-            for i in 0..rope.len() - 1 {
-                step(rope[i].0, rope[i].1, &mut rope[i + 1].0, &mut rope[i + 1].1);
+        // NEW HOTNESS
+        match bytes[0] {
+            b'U' => {
+                for _ in 0..n {
+                    rope[0].1 += 1;
+                    step_up_p2(rope[0].0, rope[0].1, &mut rope[1..]);
+                    visited.insert(rope[9]);
+                }
             }
-
-            visited.insert(rope[9]);
+            b'D' => {
+                for _ in 0..n {
+                    rope[0].1 -= 1;
+                    step_down_p2(rope[0].0, rope[0].1, &mut rope[1..]);
+                    visited.insert(rope[9]);
+                }
+            }
+            b'L' => {
+                for _ in 0..n {
+                    rope[0].0 -= 1;
+                    step_left_p2(rope[0].0, rope[0].1, &mut rope[1..]);
+                    visited.insert(rope[9]);
+                }
+            }
+            _ => {
+                for _ in 0..n {
+                    rope[0].0 += 1;
+                    step_right_p2(rope[0].0, rope[0].1, &mut rope[1..]);
+                    visited.insert(rope[9]);
+                }
+            }
         }
+
+        // OLD BUSTED
+        // let (x_mod, y_mod) = match bytes[0] {
+        //         b'U'=> {(0, 1)}
+        //         b'D'=> {(0, -1)}
+        //         b'L'=> {(-1, 0)}
+        //         _ /* 'R' */ => {(1, 0)}
+        //     };
+
+        // for _ in 0..n {
+        //     rope[0].0 += x_mod;
+        //     rope[0].1 += y_mod;
+
+        //     // FIXME: this is broke lol
+        //     match bytes[0] {
+        //         b'U' => step_up_p2(rope[0].0, rope[0].1, &mut rope[1..]),
+        //         b'D' => step_down_p2(rope[0].0, rope[0].1, &mut rope[1..]),
+        //         b'L' => step_left_p2(rope[0].0, rope[0].1, &mut rope[1..]),
+        //         _ => step_right_p2(rope[0].0, rope[0].1, &mut rope[1..]),
+        //     }
+        //     // for i in 0..rope.len() - 1 {
+        //     //     step(rope[i].0, rope[i].1, &mut rope[i + 1].0, &mut rope[i + 1].1);
+        //     // }
+
+        //     visited.insert(rope[9]);
+        // }
     }
     let p2 = visited.len();
     let p2_time = Instant::now();
@@ -267,10 +300,6 @@ fn step_up_left_p2(xh: isize, yh: isize, tail: &mut [(isize, isize)]) {
     } else {
         if yh == *yt + 2 {
             step_up_p2(xh, yh, tail)
-        } else {
-            *xt -= 1;
-            *yt += 1;
-            step_up_left_p2(*xt, *yt, &mut tail[1..])
         }
     }
 }
@@ -292,10 +321,6 @@ fn step_up_right_p2(xh: isize, yh: isize, tail: &mut [(isize, isize)]) {
     } else {
         if yh == *yt + 2 {
             step_up_p2(xh, yh, tail)
-        } else {
-            *xt += 1;
-            *yt += 1;
-            step_up_right_p2(*xt, *yt, &mut tail[1..])
         }
     }
 }
@@ -317,10 +342,6 @@ fn step_down_left_p2(xh: isize, yh: isize, tail: &mut [(isize, isize)]) {
     } else {
         if yh == *yt - 2 {
             step_down_p2(xh, yh, tail)
-        } else {
-            *xt -= 1;
-            *yt -= 1;
-            step_down_left_p2(*xt, *yt, &mut tail[1..])
         }
     }
 }
@@ -342,10 +363,6 @@ fn step_down_right_p2(xh: isize, yh: isize, tail: &mut [(isize, isize)]) {
     } else {
         if yh == *yt - 2 {
             step_down_p2(xh, yh, tail)
-        } else {
-            *xt += 1;
-            *yt -= 1;
-            step_down_right_p2(*xt, *yt, &mut tail[1..])
         }
     }
 }
