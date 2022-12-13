@@ -1,10 +1,5 @@
 use fxhash::FxHashSet;
-use std::{
-    cmp::{max, min},
-    collections::{BTreeSet, HashSet},
-    str::FromStr,
-    time::Instant,
-};
+use std::time::Instant;
 
 fn main() {
     let start = Instant::now();
@@ -367,62 +362,63 @@ fn step_down_right_p2(xh: isize, yh: isize, tail: &mut [(isize, isize)]) {
     }
 }
 
-fn step(xh: isize, yh: isize, xt: &mut isize, yt: &mut isize) {
-    if (xh - *xt).abs() <= 1 && (yh - *yt).abs() <= 1 {
-        // noop
-    } else if xh == *xt {
-        // vertical
-        if yh == *yt + 2 {
-            *yt += 1;
-        } else if yh == *yt - 2 {
-            *yt -= 1;
-        } else {
-            unreachable!();
-        }
-    } else if yh == *yt {
-        // horizontal
-        if xh == *xt + 2 {
-            *xt += 1;
-        } else if xh == *xt - 2 {
-            *xt -= 1;
-        } else {
-            unreachable!();
-        }
-        // fixme: corner moves
-    } else if xh == *xt + 2 && yh == *yt + 2 {
-        *xt += 1;
-        *yt += 1;
-    } else if xh == *xt - 2 && yh == *yt + 2 {
-        *xt -= 1;
-        *yt += 1;
-    } else if xh == *xt + 2 && yh == *yt - 2 {
-        *xt += 1;
-        *yt -= 1;
-    } else if xh == *xt - 2 && yh == *yt - 2 {
-        *xt -= 1;
-        *yt -= 1;
-    } else if xh == *xt + 2 {
-        // println!("knight move right");
-        *xt += 1;
-        *yt = yh;
-    } else if xh == *xt - 2 {
-        // println!("knight move left");
-        *xt -= 1;
-        *yt = yh;
-    } else if yh == *yt + 2 {
-        // println!("knight move up");
-        *yt += 1;
-        *xt = xh;
-    } else if yh == *yt - 2 {
-        // println!("knight move down");
-        *yt -= 1;
-        *xt = xh;
-    } else {
-        unreachable!()
-    }
-    // println!("t2: ({}, {})", xt, yt);
-    debug_assert!((xh - *xt).abs() <= 1 && (yh - *yt).abs() <= 1);
-}
+// OLD BUSTED
+// fn step(xh: isize, yh: isize, xt: &mut isize, yt: &mut isize) {
+//     if (xh - *xt).abs() <= 1 && (yh - *yt).abs() <= 1 {
+//         // noop
+//     } else if xh == *xt {
+//         // vertical
+//         if yh == *yt + 2 {
+//             *yt += 1;
+//         } else if yh == *yt - 2 {
+//             *yt -= 1;
+//         } else {
+//             unreachable!();
+//         }
+//     } else if yh == *yt {
+//         // horizontal
+//         if xh == *xt + 2 {
+//             *xt += 1;
+//         } else if xh == *xt - 2 {
+//             *xt -= 1;
+//         } else {
+//             unreachable!();
+//         }
+//         // fixme: corner moves
+//     } else if xh == *xt + 2 && yh == *yt + 2 {
+//         *xt += 1;
+//         *yt += 1;
+//     } else if xh == *xt - 2 && yh == *yt + 2 {
+//         *xt -= 1;
+//         *yt += 1;
+//     } else if xh == *xt + 2 && yh == *yt - 2 {
+//         *xt += 1;
+//         *yt -= 1;
+//     } else if xh == *xt - 2 && yh == *yt - 2 {
+//         *xt -= 1;
+//         *yt -= 1;
+//     } else if xh == *xt + 2 {
+//         // println!("knight move right");
+//         *xt += 1;
+//         *yt = yh;
+//     } else if xh == *xt - 2 {
+//         // println!("knight move left");
+//         *xt -= 1;
+//         *yt = yh;
+//     } else if yh == *yt + 2 {
+//         // println!("knight move up");
+//         *yt += 1;
+//         *xt = xh;
+//     } else if yh == *yt - 2 {
+//         // println!("knight move down");
+//         *yt -= 1;
+//         *xt = xh;
+//     } else {
+//         unreachable!()
+//     }
+//     // println!("t2: ({}, {})", xt, yt);
+//     debug_assert!((xh - *xt).abs() <= 1 && (yh - *yt).abs() <= 1);
+// }
 
 fn parse_u8_from_bytes(bytes: &[u8]) -> u8 {
     let mut n = bytes[0] - b'0';

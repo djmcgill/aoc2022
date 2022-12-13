@@ -181,6 +181,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "d10"
+version = "0.1.0"
+
+[[package]]
+name = "d11"
+version = "0.1.0"
+dependencies = [
+ "scanf",
+]
+
+[[package]]
 name = "d2"
 version = "0.1.0"
 dependencies = [
