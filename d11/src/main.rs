@@ -1,5 +1,3 @@
-#![feature(iter_array_chunks)]
-
 use scanf::sscanf;
 use std::{mem::take, str::FromStr, time::Instant};
 
