@@ -23,7 +23,7 @@ fn main() {
     let start = Instant::now();
     let mut monkeys = vec![];
 
-    for chunk in TEST.split("\n\n") {
+    for chunk in REAL.split("\n\n") {
         let mut item_list = String::new();
         let mut op_str = String::new();
         let mut op_arg_str = String::new();
