@@ -15,17 +15,14 @@ fn main() {
 
     let mut grid = [[false; W]; H];
     let max_y = read_input(&mut grid);
-
     let mut p1 = 0;
     'outer: loop {
         let mut sand_x = 500;
         let mut sand_y = 0;
-
         loop {
             if sand_y > max_y {
                 break 'outer;
-            }
-            if drop_grain(&mut grid, &mut sand_x, &mut sand_y) {
+            } else if drop_grain(&mut grid, &mut sand_x, &mut sand_y) {
                 continue;
             } else {
                 break;
@@ -34,10 +31,9 @@ fn main() {
         p1 += 1;
     }
     let p1_time = Instant::now();
+
     let mut grid = [[false; W]; H];
-
     let max_y = read_input(&mut grid);
-
     let mut p2 = 0;
     loop {
         if grid[0][500] {
@@ -46,14 +42,12 @@ fn main() {
         }
         let mut sand_x = 500;
         let mut sand_y = 0;
-
         loop {
             if sand_y == max_y + 1 {
                 // we hit the floor
                 grid[sand_y][sand_x] = true;
                 break;
-            }
-            if drop_grain(&mut grid, &mut sand_x, &mut sand_y) {
+            } else if drop_grain(&mut grid, &mut sand_x, &mut sand_y) {
                 continue;
             } else {
                 break;
@@ -69,25 +63,15 @@ fn main() {
 
 fn drop_grain(grid: &mut Grid, sand_x: &mut usize, sand_y: &mut usize) -> bool {
     let target_down_y = *sand_y + 1;
+    for dx in [0, -1, 1] {
+        let target_x = (*sand_x as isize + dx) as usize;
+        if !grid[target_down_y][target_x] {
+            *sand_x = target_x;
+            *sand_y = target_down_y;
+            return true;
+        }
+    }
 
-    let target_down_x = *sand_x;
-    if !grid[target_down_y][target_down_x] {
-        *sand_x = target_down_x;
-        *sand_y = target_down_y;
-        return true;
-    }
-    let target_down_left_x = *sand_x - 1; // I would simply not underflow
-    if !grid[target_down_y][target_down_left_x] {
-        *sand_x = target_down_left_x;
-        *sand_y = target_down_y;
-        return true;
-    }
-    let target_down_right_x = *sand_x + 1;
-    if !grid[target_down_y][target_down_right_x] {
-        *sand_x = target_down_right_x;
-        *sand_y = target_down_y;
-        return true;
-    }
     // we're stuck here
     grid[*sand_y][*sand_x] = true;
     false
@@ -96,6 +80,7 @@ fn drop_grain(grid: &mut Grid, sand_x: &mut usize, sand_y: &mut usize) -> bool {
 fn read_input(grid: &mut Grid) -> usize {
     let mut max_y = 0;
 
+    // TODO: sliding windows?
     for line in INPUT.lines() {
         let mut pairs = line.split("->");
         let mut x0y0 = pairs.next().unwrap().split(',');
