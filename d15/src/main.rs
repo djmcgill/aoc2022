@@ -60,9 +60,9 @@ fn main() {
     //     see if the whole y range is covered by the relevant squares.
     //     x' =  x + y
     //     y' = -x + y
-    let mut squares: Vec<(isize, isize, isize)> = Vec::new();
-    let mut start_squares: Vec<(isize, usize)> = Vec::new();
-    let mut end_squares: Vec<(isize, usize)> = Vec::new();
+    let mut squares: Vec<(isize, isize)> = Vec::new();
+    let mut left_edges: Vec<(isize, usize)> = Vec::new();
+    let mut right_edges: Vec<(isize, usize)> = Vec::new();
 
     for line in INPUT.lines() {
         let ((sx, sy), (bx, by)) = parse_line(line);
@@ -70,49 +70,43 @@ fn main() {
         let x_prime = sx + sy;
         let y_prime = -sx + sy;
 
-        // todo: remove the indirection of `squares`?
-        squares.push((x_prime, y_prime, dist_from_beacon));
-        start_squares.push((x_prime - dist_from_beacon, squares.len() - 1));
-        end_squares.push((x_prime + dist_from_beacon, squares.len() - 1));
+        squares.push((y_prime, dist_from_beacon));
+        left_edges.push((x_prime - dist_from_beacon, squares.len() - 1));
+        right_edges.push((x_prime + dist_from_beacon, squares.len() - 1));
     }
-
+    let p2_mid = Instant::now();
     // we go along the list of end edges, and maintain which squares we're currently
     // in the x-range of
     let mut active_xs = HashSet::new();
-    let mut start_squares_ix = 0;
-    start_squares.sort_by_key(|x| x.0);
-    let mut end_squares_ix = 0;
-    end_squares.sort_by_key(|x| x.0);
+    let mut left_edges_ix = 0;
+    left_edges.sort_by_key(|x| x.0);
+    let mut right_edges_ix = 0;
+    right_edges.sort_by_key(|x| x.0);
 
-    let mut i = 0;
     let mut p2 = 0;
-    while i < end_squares.len() {
-        let (x_prime, _square_ix) = &end_squares[i];
-        i += 1;
-
+    for (x_prime, _) in &right_edges {
         // we're only interested in looking 1 spare further on from an edge
         let target_x = x_prime + 1;
 
         // insert any starts we missed
-        while start_squares_ix < start_squares.len()
-            && start_squares[start_squares_ix].0 <= target_x
-        {
-            active_xs.insert(start_squares[start_squares_ix].1);
-            start_squares_ix += 1;
+        while left_edges_ix < left_edges.len() && left_edges[left_edges_ix].0 <= target_x {
+            active_xs.insert(left_edges[left_edges_ix].1);
+            left_edges_ix += 1;
         }
         // remove any ends we've arrived at, including this one
         // todo: this shouldn't actually be needed right given we're traversing this list?
-        while end_squares_ix < end_squares.len() && end_squares[end_squares_ix].0 < target_x {
-            active_xs.remove(&end_squares[end_squares_ix].1);
-            end_squares_ix += 1;
+        while right_edges_ix < right_edges.len() && right_edges[right_edges_ix].0 < target_x {
+            active_xs.remove(&right_edges[right_edges_ix].1);
+            right_edges_ix += 1;
         }
 
         let mut disjoint_set = DisjointRangeSet::default();
         for x in &active_xs {
-            let (_x, y_prime, dist_from_beacon) = squares[*x];
+            let (y_prime, dist_from_beacon) = squares[*x];
             disjoint_set.insert((y_prime - dist_from_beacon, y_prime + dist_from_beacon));
         }
-        // fortunately for us, the target is never on the edge
+        // fortunately for us, the target is never on the edge or just looking for a gap
+        // in the middle wouldn't work
         if disjoint_set.0.len() > 1 {
             // now we convert back into the original coord system
             //     x' =  x + y
@@ -122,7 +116,7 @@ fn main() {
             let y = (x_prime + y_prime) / 2;
             let x = y - y_prime;
 
-            p2 = x as u64 * 4000000 + y as u64;
+            p2 = x as u64 * 4_000_000 + y as u64;
             break;
         }
     }
@@ -132,7 +126,9 @@ fn main() {
     // p1: 32.3µs
     // p2: 37.8µs
     println!("p1: {:?}", p1_end - start);
-    println!("p2: {:?}", p2_end - p1_end);
+    println!("p2 parsing: {:?}", p2_mid - p1_end);
+    println!("p2 thinking: {:?}", p2_end - p2_mid);
+    println!("p2 total: {:?}", p2_end - p1_end);
 }
 
 fn parse_line(line: &str) -> ((isize, isize), (isize, isize)) {
