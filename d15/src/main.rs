@@ -17,26 +17,15 @@ fn main() {
     let start = Instant::now();
     let mut range_set = DisjointRangeSet::default();
     for line in INPUT.lines() {
-        let mut sx: isize = 0;
-        let mut sy: isize = 0;
-        let mut bx: isize = 0;
-        let mut by: isize = 0;
-        sscanf!(
-            line,
-            "Sensor at x={}, y={}: closest beacon is at x={}, y={}",
-            sx,
-            sy,
-            bx,
-            by
-        )
-        .unwrap();
+        let ((sx, sy), (bx, by)) = parse_line(line);
         let dist_from_beacon = (bx - sx).abs() + (by - sy).abs();
         let dist_from_target = (sy - TARGET_ROW).abs();
         if dist_from_beacon >= dist_from_target {
             // could instead just keep a hashset of beacons we've seen so far
             if by == TARGET_ROW {
                 // if the beacon is the only cell in the target row we can see, then we can't count
-                // any cells out
+                // any cells out, otherwise we have two ranges: one to the left and one to the right
+                // of the beacon
                 if dist_from_beacon != dist_from_target {
                     let obscured_range_l = (sx - dist_from_beacon + dist_from_target, bx - 1);
                     let obscured_range_r = (bx + 1, sx + dist_from_beacon - dist_from_target);
@@ -54,12 +43,11 @@ fn main() {
                     sx - dist_from_beacon + dist_from_target,
                     sx + dist_from_beacon - dist_from_target,
                 );
-                // dbg!((sx, sy), dist_from_beacon, dist_from_target, obscured_range);
                 range_set.insert(obscured_range);
             }
         }
     }
-
+    // sum up the distinct ranges
     let mut p1 = 0;
     for (l, u) in &range_set.0 {
         p1 += u - l + 1;
@@ -77,19 +65,7 @@ fn main() {
     let mut end_squares: Vec<(isize, usize)> = Vec::new();
 
     for line in INPUT.lines() {
-        let mut sx: isize = 0;
-        let mut sy: isize = 0;
-        let mut bx: isize = 0;
-        let mut by: isize = 0;
-        sscanf!(
-            line,
-            "Sensor at x={}, y={}: closest beacon is at x={}, y={}",
-            sx,
-            sy,
-            bx,
-            by
-        )
-        .unwrap();
+        let ((sx, sy), (bx, by)) = parse_line(line);
         let dist_from_beacon = (bx - sx).abs() + (by - sy).abs();
         let x_prime = sx + sy;
         let y_prime = -sx + sy;
@@ -157,6 +133,23 @@ fn main() {
     // p2: 37.8µs
     println!("p1: {:?}", p1_end - start);
     println!("p2: {:?}", p2_end - p1_end);
+}
+
+fn parse_line(line: &str) -> ((isize, isize), (isize, isize)) {
+    let mut sx: isize = 0;
+    let mut sy: isize = 0;
+    let mut bx: isize = 0;
+    let mut by: isize = 0;
+    sscanf!(
+        line,
+        "Sensor at x={}, y={}: closest beacon is at x={}, y={}",
+        sx,
+        sy,
+        bx,
+        by
+    )
+    .unwrap();
+    ((sx, sy), (bx, by))
 }
 
 const REAL: &str = include_str!("real.txt");
