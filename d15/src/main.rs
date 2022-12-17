@@ -1,7 +1,7 @@
-use scanf::sscanf;
 use std::{
     cmp::{max, min},
     collections::HashSet,
+    io::{Cursor, Read},
     time::Instant,
 };
 
@@ -16,8 +16,8 @@ fn main() {
     //     the beacon if applicable, and keep track of all those 1D areas, combining when possible
     let start = Instant::now();
     let mut range_set = DisjointRangeSet::default();
-    for line in INPUT.lines() {
-        let ((sx, sy), (bx, by)) = parse_line(line);
+    for line in parse_input(INPUT) {
+        let ((sx, sy), (bx, by)) = line;
         let dist_from_beacon = (bx - sx).abs() + (by - sy).abs();
         let dist_from_target = (sy - TARGET_ROW).abs();
         if dist_from_beacon >= dist_from_target {
@@ -64,8 +64,8 @@ fn main() {
     let mut left_edges: Vec<(isize, usize)> = Vec::new();
     let mut right_edges: Vec<(isize, usize)> = Vec::new();
 
-    for line in INPUT.lines() {
-        let ((sx, sy), (bx, by)) = parse_line(line);
+    for line in parse_input(INPUT) {
+        let ((sx, sy), (bx, by)) = line;
         let dist_from_beacon = (bx - sx).abs() + (by - sy).abs();
         let x_prime = sx + sy;
         let y_prime = -sx + sy;
@@ -80,11 +80,10 @@ fn main() {
     let mut active_xs = HashSet::new();
     let mut left_edges_ix = 0;
     left_edges.sort_by_key(|x| x.0);
-    let mut right_edges_ix = 0;
     right_edges.sort_by_key(|x| x.0);
 
     let mut p2 = 0;
-    for (x_prime, _) in &right_edges {
+    for (x_prime, square_ix) in &right_edges {
         // we're only interested in looking 1 spare further on from an edge
         let target_x = x_prime + 1;
 
@@ -93,12 +92,8 @@ fn main() {
             active_xs.insert(left_edges[left_edges_ix].1);
             left_edges_ix += 1;
         }
-        // remove any ends we've arrived at, including this one
-        // todo: this shouldn't actually be needed right given we're traversing this list?
-        while right_edges_ix < right_edges.len() && right_edges[right_edges_ix].0 < target_x {
-            active_xs.remove(&right_edges[right_edges_ix].1);
-            right_edges_ix += 1;
-        }
+        // remove this end from consideration
+        active_xs.remove(&square_ix);
 
         let mut disjoint_set = DisjointRangeSet::default();
         for x in &active_xs {
@@ -131,21 +126,44 @@ fn main() {
     println!("p2 total: {:?}", p2_end - p1_end);
 }
 
-fn parse_line(line: &str) -> ((isize, isize), (isize, isize)) {
-    let mut sx: isize = 0;
-    let mut sy: isize = 0;
-    let mut bx: isize = 0;
-    let mut by: isize = 0;
-    sscanf!(
-        line,
-        "Sensor at x={}, y={}: closest beacon is at x={}, y={}",
-        sx,
-        sy,
-        bx,
-        by
-    )
-    .unwrap();
+fn parse_input(input: &str) -> Vec<((isize, isize), (isize, isize))> {
+    let mut cursor = Cursor::new(input.as_bytes());
+    let mut vec = vec![];
+    while cursor.position() < cursor.get_ref().len() as u64 {
+        vec.push(parse_line(&mut cursor));
+    }
+    vec
+}
+
+fn parse_line(cursor: &mut Cursor<&[u8]>) -> ((isize, isize), (isize, isize)) {
+    cursor.set_position(cursor.position() + 12);
+    let sx = parse_isize(cursor);
+    cursor.set_position(cursor.position() + 3);
+
+    let sy = parse_isize(cursor);
+    cursor.set_position(cursor.position() + 24);
+    let bx = parse_isize(cursor);
+    cursor.set_position(cursor.position() + 3);
+    let by = parse_isize(cursor);
     ((sx, sy), (bx, by))
+}
+fn parse_isize(cursor: &mut Cursor<&[u8]>) -> isize {
+    let mut sign = 1;
+    let mut int = 0;
+    let mut cs = vec![0];
+    loop {
+        cursor.read_exact(&mut cs).unwrap();
+        let c = cs[0];
+        if c == b'-' {
+            sign *= -1
+        } else if (b'0'..=b'9').contains(&c) {
+            int *= 10;
+            int += (c - b'0') as isize;
+        } else {
+            break;
+        }
+    }
+    sign * int
 }
 
 const REAL: &str = include_str!("real.txt");
@@ -202,6 +220,15 @@ impl DisjointRangeSet {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_input_test() {
+        let line = "Sensor at x=9, y=16: closest beacon is at x=10, y=16\nSensor at x=16, y=7: closest beacon is at x=15, y=3\n";
+        assert_eq!(
+            parse_input(line),
+            vec![((9, 16), (10, 16)), ((16, 7), (15, 3)),]
+        );
+    }
 
     #[test]
     fn disjoint_range() {
