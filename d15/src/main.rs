@@ -118,8 +118,8 @@ fn main() {
     let p2_end = Instant::now();
 
     println!("{} {}", p1, p2);
-    // p1: 32.3µs
-    // p2: 37.8µs
+    // p1: 7.7µs
+    // p2: 28.4µs
     println!("p1: {:?}", p1_end - start);
     println!("p2 parsing: {:?}", p2_mid - p1_end);
     println!("p2 thinking: {:?}", p2_end - p2_mid);

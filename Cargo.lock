@@ -218,6 +218,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "d16"
+version = "0.1.0"
+dependencies = [
+ "pathfinding",
+ "pqueue",
+ "scanf",
+]
+
+[[package]]
 name = "d2"
 version = "0.1.0"
 dependencies = [
@@ -508,6 +517,12 @@ checksum = "f9a81d2759aae1dae668f783c308bc5c8ebd191ff4184aaa1b37f65a6ae5a56f"
 dependencies = [
  "plotters-backend",
 ]
+
+[[package]]
+name = "pqueue"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2145d14f09d5fc7fe7134b556146599c2929af5b1f1e3a0ecc9d582a9b85e4d"
 
 [[package]]
 name = "proc-macro2"
