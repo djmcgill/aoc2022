@@ -211,6 +211,13 @@ name = "d14"
 version = "0.1.0"
 
 [[package]]
+name = "d15"
+version = "0.1.0"
+dependencies = [
+ "scanf",
+]
+
+[[package]]
 name = "d2"
 version = "0.1.0"
 dependencies = [
