@@ -1,12 +1,11 @@
-use pathfinding::undirected::connected_components::connected_components;
-use std::{cmp::max, str::FromStr, time::Instant};
+use std::{collections::HashSet, str::FromStr, time::Instant};
 
-const INPUT: &str = REAL;
+// const INPUT: &str = TEST;
 const N: u8 = 22;
 const Y_MULT: usize = N as usize;
 const Z_MULT: usize = N as usize * N as usize;
 const LEN: usize = N as usize * N as usize * N as usize;
-// const INPUT: &str = REAL;
+const INPUT: &str = REAL;
 
 // 4496
 // 254
@@ -87,55 +86,27 @@ fn main() {
     let p2_a = Instant::now();
     let mut p2 = 0;
 
-    let mut air = vec![];
+    let mut air = HashSet::new();
     for ix in 0..LEN {
         let &(present, neighbours) = &grid[ix];
         if present {
             p2 += 6 - neighbours as usize;
         } else {
-            air.push(ix);
+            air.insert(ix);
         }
     }
 
-    let connected_air_components = connected_components(&air, |&i: &usize| {
-        let mut neighbours = vec![];
-        let (x, y, z) = un_ix(i);
-
-        if x != 0 && !grid[i - 1].0 {
-            neighbours.push(i - 1);
-        }
-        if x != N - 1 && !grid[i + 1].0 {
-            neighbours.push(i + 1);
-        }
-        if y != 0 && !grid[i - Y_MULT].0 {
-            neighbours.push(i - Y_MULT);
-        }
-        if y != N - 1 && !grid[i + Y_MULT].0 {
-            neighbours.push(i + Y_MULT);
-        }
-        if z != 0 && !grid[i - Z_MULT].0 {
-            neighbours.push(i - Z_MULT);
-        }
-        if z != N - 1 && !grid[i + Z_MULT].0 {
-            neighbours.push(i + Z_MULT);
-        }
-
-        neighbours
-    });
-    let mut max_cac = 0;
-    let p2_b = Instant::now();
-    for cac in &connected_air_components {
-        max_cac = max(max_cac, cac.len());
-    }
-
-    for cac in connected_air_components {
-        if cac.len() != max_cac {
-            for ix in cac {
-                // for each internal air voxel
-                // don't count its solid neighbour faces
-                p2 -= grid[ix].1 as usize;
+    let mut to_visit = vec![0];
+    while let Some(x) = to_visit.pop() {
+        for neighbour in neighbours(x, &grid) {
+            if air.remove(&neighbour) {
+                to_visit.push(neighbour);
             }
         }
+    }
+
+    for ix in air {
+        p2 -= grid[ix].1 as usize;
     }
 
     // let p1 = n * 6 - touches * 2;
@@ -146,8 +117,32 @@ fn main() {
     println!("p2: {}", p2);
     println!("{:?}", p2_time - start_time);
     println!("grid/parse {:?}", p2_a - start_time);
-    println!("connected components {:?}", p2_b - p2_a);
-    println!("counting air faces {:?}", p2_time - p2_b);
+    println!("connected components {:?}", p2_time - p2_a);
+}
+
+fn neighbours(i: usize, grid: &Vec<(bool, u8)>) -> Vec<usize> {
+    let mut neighbours = vec![];
+    let (x, y, z) = un_ix(i);
+
+    if x != 0 && !grid[i - 1].0 {
+        neighbours.push(i - 1);
+    }
+    if x != N - 1 && !grid[i + 1].0 {
+        neighbours.push(i + 1);
+    }
+    if y != 0 && !grid[i - Y_MULT].0 {
+        neighbours.push(i - Y_MULT);
+    }
+    if y != N - 1 && !grid[i + Y_MULT].0 {
+        neighbours.push(i + Y_MULT);
+    }
+    if z != 0 && !grid[i - Z_MULT].0 {
+        neighbours.push(i - Z_MULT);
+    }
+    if z != N - 1 && !grid[i + Z_MULT].0 {
+        neighbours.push(i + Z_MULT);
+    }
+    neighbours
 }
 
 const REAL: &str = include_str!("real.txt");
