@@ -227,6 +227,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "d17"
+version = "0.1.0"
+
+[[package]]
+name = "d18"
+version = "0.1.0"
+dependencies = [
+ "pathfinding",
+]
+
+[[package]]
 name = "d2"
 version = "0.1.0"
 dependencies = [
