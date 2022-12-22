@@ -33,68 +33,6 @@ const HUMN: u32 = u32::from_le_bytes([b'h', b'u', b'm', b'n']);
 const INPUT: &str = REAL;
 // const INPUT: &str = TEST;
 
-fn parse_id(line: &[u8]) -> Key {
-    u32::from_le_bytes([line[0], line[1], line[2], line[3]])
-}
-fn parse_op(op: u8) -> Op {
-    match op {
-        b'+' => Op::Add,
-        b'-' => Op::Sub,
-        b'*' => Op::Mul,
-        b'/' => Op::Div,
-        _ => unreachable!(),
-    }
-}
-
-fn parse_p1() -> HashMap<Key, P1Job> {
-    INPUT
-        .lines()
-        .map(|line| {
-            let line = line.as_bytes();
-            let id = parse_id(line);
-            let job = if let Ok(output) = isize::from_str(from_utf8(&line[6..]).unwrap()) {
-                Job::Const(output)
-            } else {
-                Job::Op(
-                    false,
-                    parse_op(line[11]),
-                    parse_id(&line[6..]),
-                    parse_id(&line[13..]),
-                )
-            };
-            (id, job)
-        })
-        .collect()
-}
-
-fn parse_p2() -> HashMap<Key, P2Job> {
-    let map = INPUT
-        .lines()
-        .map(|line| {
-            let line = line.as_bytes();
-            let id = parse_id(line);
-            if id == HUMN {
-                (id, Job::Human)
-            } else {
-                let job = if let Ok(output) = isize::from_str(from_utf8(&line[6..]).unwrap()) {
-                    Job::Const(output)
-                } else {
-                    let child_1_id = parse_id(&line[6..]);
-                    let child_2_id = parse_id(&line[13..]);
-                    Job::Op(
-                        false,
-                        parse_op(line[11]),
-                        Child::Monkey(child_1_id),
-                        Child::Monkey(child_2_id),
-                    )
-                };
-                (id, job)
-            }
-        })
-        .collect();
-    map
-}
-
 fn main() {
     let start_time = Instant::now();
     let mut jobs = parse_p1();
@@ -261,6 +199,68 @@ fn main() {
     let p2_time = Instant::now();
     println!("p1: {} {:?}", p1, p1_time - start_time);
     println!("p2: {} {:?}", p2, p2_time - p1_time);
+}
+
+fn parse_id(line: &[u8]) -> Key {
+    u32::from_le_bytes([line[0], line[1], line[2], line[3]])
+}
+fn parse_op(op: u8) -> Op {
+    match op {
+        b'+' => Op::Add,
+        b'-' => Op::Sub,
+        b'*' => Op::Mul,
+        b'/' => Op::Div,
+        _ => unreachable!(),
+    }
+}
+
+fn parse_p1() -> HashMap<Key, P1Job> {
+    INPUT
+        .lines()
+        .map(|line| {
+            let line = line.as_bytes();
+            let id = parse_id(line);
+            let job = if let Ok(output) = isize::from_str(from_utf8(&line[6..]).unwrap()) {
+                Job::Const(output)
+            } else {
+                Job::Op(
+                    false,
+                    parse_op(line[11]),
+                    parse_id(&line[6..]),
+                    parse_id(&line[13..]),
+                )
+            };
+            (id, job)
+        })
+        .collect()
+}
+
+fn parse_p2() -> HashMap<Key, P2Job> {
+    let map = INPUT
+        .lines()
+        .map(|line| {
+            let line = line.as_bytes();
+            let id = parse_id(line);
+            if id == HUMN {
+                (id, Job::Human)
+            } else {
+                let job = if let Ok(output) = isize::from_str(from_utf8(&line[6..]).unwrap()) {
+                    Job::Const(output)
+                } else {
+                    let child_1_id = parse_id(&line[6..]);
+                    let child_2_id = parse_id(&line[13..]);
+                    Job::Op(
+                        false,
+                        parse_op(line[11]),
+                        Child::Monkey(child_1_id),
+                        Child::Monkey(child_2_id),
+                    )
+                };
+                (id, job)
+            }
+        })
+        .collect();
+    map
 }
 
 fn do_op(op: Op, arg_1_value: isize, arg_2_value: isize) -> isize {
