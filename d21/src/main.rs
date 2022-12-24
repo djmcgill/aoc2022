@@ -158,6 +158,7 @@ fn main() {
             }
         }
     }
+    println!("SIZE: {}", jobs.len());
     // okay we removed all the consts and are just left with standard linear equations
     let (mut x, mut child_id) = match jobs[&ROOT] {
         Job::Op(_, _, Child::Const(x), Child::Monkey(child_id))
