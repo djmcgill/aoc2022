@@ -263,6 +263,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "d23"
+version = "0.1.0"
+dependencies = [
+ "fxhash",
+]
+
+[[package]]
 name = "d3"
 version = "0.1.0"
 dependencies = [

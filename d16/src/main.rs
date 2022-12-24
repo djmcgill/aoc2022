@@ -14,6 +14,7 @@ const INPUT: &str = REAL;
 // 1611 too low
 // 1747
 // okay I'm giving up now
+// FIXME: each step should be which pipe you turn on next, not individual moves
 
 #[derive(Debug, Clone)]
 struct Graph {
