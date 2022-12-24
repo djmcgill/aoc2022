@@ -6,8 +6,10 @@ use std::{
 
 // const INPUT: &str = TEST;
 const INPUT: &str = REAL;
+type Elf = (isize, isize);
 
 fn p1() -> usize {
+    // todo: try a grid based approach? square input is nice
     let mut elves = HashSet::default();
     for (y, line) in INPUT.lines().enumerate() {
         for (x, c) in line.bytes().enumerate() {
@@ -18,24 +20,7 @@ fn p1() -> usize {
     }
 
     for i in 0..10 {
-        let mut new_positions = HashMap::default();
-        for &elf in &elves {
-            let prospective_move = prospective_move(i, elf, &elves);
-            new_positions
-                .entry(prospective_move)
-                .and_modify(|x| *x += 1)
-                .or_insert(1);
-        }
-        let mut new_elves = HashSet::default();
-        for &elf in &elves {
-            // looking up twice is bad, okay
-            let prospective_move = prospective_move(i, elf, &elves);
-            if new_positions[&prospective_move] == 1 {
-                new_elves.insert(prospective_move);
-            } else {
-                new_elves.insert(elf);
-            }
-        }
+        let new_elves = do_shuffle(i, &elves);
         elves = new_elves;
     }
 
@@ -63,28 +48,8 @@ fn p2() -> usize {
     }
 
     for i in 0.. {
-        // println!("i: {}", i);
-        let mut new_positions = HashMap::default();
-        let mut prospective_moves = vec![];
-        for &elf in &elves {
-            let prospective_move = prospective_move(i, elf, &elves);
-            new_positions
-                .entry(prospective_move)
-                .and_modify(|x| *x += 1)
-                .or_insert(1);
-            prospective_moves.push((elf, prospective_move));
-        }
-
-        let mut new_elves = HashSet::default();
-        for &(elf, prospective_move1) in &prospective_moves {
-            let prospective_move_2 = prospective_move(i, elf, &elves);
-            debug_assert_eq!(prospective_move1, prospective_move_2);
-            if new_positions[&prospective_move1] == 1 {
-                new_elves.insert(prospective_move1);
-            } else {
-                new_elves.insert(elf);
-            }
-        }
+        let new_elves = do_shuffle(i, &elves);
+        // todo: work out a better way to see if anybody has moved or not
         if elves == new_elves {
             return i + 1;
         } else {
@@ -94,11 +59,37 @@ fn p2() -> usize {
     unreachable!()
 }
 
-fn prospective_move(
-    i: usize,
-    elf: (isize, isize),
-    elves: &HashSet<(isize, isize)>,
-) -> (isize, isize) {
+fn do_shuffle(i: usize, elves: &HashSet<Elf>) -> HashSet<Elf> {
+    let mut new_positions = HashMap::default();
+    let mut prospective_moves = vec![];
+
+    for &elf in elves {
+        let prospective_move = prospective_move(i, elf, &elves);
+        // this is where each elf is proposing to move
+        new_positions
+            .entry(prospective_move)
+            .and_modify(|x| *x += 1)
+            .or_insert(1);
+
+        // keeping track of the generated move so we don't have to calculate twice
+        prospective_moves.push((elf, prospective_move));
+    }
+
+    // now actually try to move
+    let mut new_elves = HashSet::default();
+    for &(elf, prospective_move1) in &prospective_moves {
+        if new_positions[&prospective_move1] == 1 {
+            // we're good
+            new_elves.insert(prospective_move1);
+        } else {
+            // nope
+            new_elves.insert(elf);
+        }
+    }
+    new_elves
+}
+
+fn prospective_move(i: usize, elf: Elf, elves: &HashSet<Elf>) -> Elf {
     let n = elves.contains(&(elf.0, elf.1 - 1));
     let ne = elves.contains(&(elf.0 + 1, elf.1 - 1));
     let nw = elves.contains(&(elf.0 - 1, elf.1 - 1));
