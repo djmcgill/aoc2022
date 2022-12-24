@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 // const INPUT: &str = TEST;
 // const N: usize = 4;
 // const fn lookup(grid_x: usize, grid_y: usize, dir_ix: usize) -> (usize, usize, usize) {
@@ -14,18 +16,16 @@ const fn lookup(grid_x: usize, grid_y: usize, dir_ix: usize) -> (usize, usize, u
 const DIRS: [(isize, isize); 4] = [(1, 0), (0, 1), (-1, 0), (0, -1)]; // R D L U
 
 fn main() {
+    let start_time = Instant::now();
     let p1 = p1();
-
-    // P2
-    // okay so I feel like we should think of this in terms of the 6 faces
-    // as the 3d vecs (0,0,1),(0,0,-1),(0,1,0),(0,-1,0),(1,0,0),(-1,0,0)
+    let p1_time = Instant::now();
+    let p2 = p2();
+    let p2_time = Instant::now();
 
     println!("p1: {}", p1);
-
-    let p2 = p2();
+    println!("{:?}", p1_time - start_time); // 388.8µs
     println!("p2: {}", p2);
-
-    // don't forget the final number if applicable
+    println!("{:?}", p2_time - p1_time); // 359.4µs
 }
 
 fn p1() -> usize {
