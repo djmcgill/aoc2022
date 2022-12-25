@@ -277,6 +277,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "d25"
+version = "0.1.0"
+
+[[package]]
 name = "d3"
 version = "0.1.0"
 dependencies = [
