@@ -21,18 +21,14 @@ fn parse_snafu(x: &[u8]) -> isize {
 fn print_snafu(mut x: isize) -> String {
     // todo: use ilog(5) to work from the front instead of from the backs
     // let mut modulo = 1; // this is better than dividing
-    let mut carry = 0;
     let mut ans = Vec::new();
-    loop {
-        let y = x + carry;
-        let (digit, new_carry) = snafu_int_to_digit_and_carry(y % 5);
-        carry = new_carry;
+    while {
+        let (digit, carry) = snafu_int_to_digit_and_carry(x % 5);
         ans.push(digit);
-        x = y / 5;
-        if x == 0 && carry == 0 {
-            break;
-        }
-    }
+        x /= 5;
+        x += carry;
+        x != 0
+    } {}
 
     ans.reverse();
     from_utf8(&ans).unwrap().to_string()
