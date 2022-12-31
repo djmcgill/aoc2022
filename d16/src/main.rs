@@ -46,8 +46,8 @@ fn main() {
     println!("p2: {:?}", p2_done - p1_done);
 
     // parse: 531.9µs
-    // p1: 28.6289ms
-    // p2: 521.2889ms
+    // p1: 27.6257ms
+    // p2: 505.5361ms
 }
 
 fn p1(graph: &Graph) -> usize {
@@ -109,12 +109,12 @@ fn p2(graph: &Graph) -> usize {
                     graph.routes_with_dist[&(*elephant_node, non_zero_node)] + 1;
                 if your_travel_time < elephant_travel_time {
                     if let Some(candidate) =
-                        top.update(graph, non_zero_node, true, Some(your_travel_time))
+                        top.update(graph, non_zero_node, true, your_travel_time)
                     {
                         candidates.push(candidate);
                     }
                 } else if let Some(candidate) =
-                    top.update(graph, non_zero_node, false, Some(elephant_travel_time))
+                    top.update(graph, non_zero_node, false, elephant_travel_time)
                 {
                     candidates.push(candidate);
                 }
@@ -216,22 +216,9 @@ impl P2Path {
         graph: &Graph,
         dest: NodeId,
         your_move: bool,
-        known_dist: Option<usize>,
+        travel_dt: usize,
     ) -> Option<Self> {
         // how long will it take us to get there
-        let valves = if your_move {
-            &self.path.you.valves
-        } else {
-            &self.path.elephant.valves
-        };
-
-        let current_node = valves.last().unwrap_or(&graph.start);
-
-        let travel_dt = known_dist.unwrap_or_else(|| {
-            let travel_time = graph.routes_with_dist[&(*current_node, dest)];
-            travel_time + 1 // got to turn valve on
-        });
-
         let (time_so_far, other_time_so_far) = if your_move {
             (self.path.you.time_so_far, self.path.elephant.time_so_far)
         } else {
