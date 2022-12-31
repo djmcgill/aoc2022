@@ -107,15 +107,13 @@ fn p2(graph: &Graph) -> usize {
                 let your_travel_time = graph.routes_with_dist[&(*your_node, non_zero_node)] + 1;
                 let elephant_travel_time =
                     graph.routes_with_dist[&(*elephant_node, non_zero_node)] + 1;
-                if your_travel_time < elephant_travel_time {
-                    if let Some(candidate) =
-                        top.update(graph, non_zero_node, true, your_travel_time)
-                    {
-                        candidates.push(candidate);
-                    }
-                } else if let Some(candidate) =
-                    top.update(graph, non_zero_node, false, elephant_travel_time)
-                {
+                let (is_you, travel_time) = if your_travel_time < elephant_travel_time {
+                    (true, your_travel_time)
+                } else {
+                    (false, elephant_travel_time)
+                };
+
+                if let Some(candidate) = top.update(graph, non_zero_node, is_you, travel_time) {
                     candidates.push(candidate);
                 }
             }
