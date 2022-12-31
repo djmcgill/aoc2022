@@ -221,6 +221,7 @@ dependencies = [
 name = "d16"
 version = "0.1.0"
 dependencies = [
+ "fxhash",
  "pathfinding",
  "pqueue",
  "scanf",

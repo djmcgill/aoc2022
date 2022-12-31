@@ -1,299 +1,512 @@
-use pathfinding::directed::bfs::bfs;
+use fxhash::FxHashMap as HashMap;
+use pathfinding::directed::dijkstra::dijkstra_all;
 use pqueue::Queue;
 use scanf::sscanf;
 use std::{
     cmp::{max, min, Ordering},
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::hash_map::Entry,
     time::Instant,
 };
 
 // const INPUT: &str = TEST;
 const INPUT: &str = REAL;
-// 1022 too low
-// 1138 too low
-// 1611 too low
-// 1747
-// okay I'm giving up now
-// FIXME: each step should be which pipe you turn on next, not individual moves
+
+#[derive(Hash, Eq, PartialEq, Clone, Copy, Debug, PartialOrd, Ord)]
+struct NodeId(usize);
+
+#[derive(Clone, Debug)]
+struct Node {
+    weight: usize,
+    connections: Vec<NodeId>,
+}
 
 #[derive(Debug, Clone)]
 struct Graph {
-    nodes: HashMap<String, (usize, Vec<String>)>,
-    sorted_nodes: Vec<String>,
+    start: NodeId,
+    nodes: HashMap<NodeId, Node>,
+    routes_with_dist: HashMap<(NodeId, NodeId), usize>,
+    non_zero_nodes: u64,
 }
 
-// okay we can dedup by looking at on_nodes, current position
+fn main() {
+    let start_time = Instant::now();
+    let graph_p1 = parse(INPUT);
+    let algo_start = Instant::now();
+    let p1 = p1(&graph_p1);
+    let p1_done = Instant::now();
 
-// this one cool dynamic programming trick they don't want you to know!
-// simply cache the whole algorithm!!!
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Path {
-    // it's the current increment projected out to turn 30 plus the action_score
-    // a better heuristic might be to look at nearby off nodes too
-    heuristic: isize,
-    // an empty string means turn the valve on, why not
-    actions: Vec<String>,
-    // scoring the actions but not any waiting around
-    action_score: usize,
-    action_score_increment: usize,
-    current_node: String,
-    on_nodes: HashSet<String>,
-    sorted_off_nonzero_nodes: Vec<String>,
-    visited_since_last_turnon: HashSet<String>,
-    // we're just going to hard-dedup
-    previous_positions: HashMap<(Vec<String>, String), usize>,
+    let graph_p2 = parse(INPUT);
+    let p2 = p2(&graph_p2);
+    let p2_done = Instant::now();
+
+    println!("p1: {}", p1);
+    println!("p2: {}", p2);
+    println!("parse: {:?}", algo_start - start_time);
+    println!("p1: {:?}", p1_done - start_time);
+    println!("p2: {:?}", p2_done - p1_done);
+
+    // parse: 531.9µs
+    // p1: 28.6289ms
+    // p2: 521.2889ms
 }
-impl Ord for Path {
+
+fn p1(graph: &Graph) -> usize {
+    let mut dedup_lookup: HashMap<(NodeId, u64), usize> = HashMap::default();
+
+    let dummy_path = P1Path::new(graph);
+    let mut paths = Queue::new();
+    paths.push(dummy_path);
+    let mut finished_path = P1Path::new(graph);
+
+    while let Some(top) = paths.pop() {
+        if top < finished_path {
+            finished_path = top.clone();
+        }
+
+        if top.path.time_so_far >= 30 || top.all_valves_on(graph) {
+            // we're done, this path can have no more children
+        } else {
+            // get the next candidates
+            for non_zero_node in remaining_nodes(top.remaining_nodes) {
+                if let Some(candidate) = top.update(graph, non_zero_node) {
+                    if update_dedup_cache_p1(&mut dedup_lookup, &candidate) {
+                        paths.push(candidate);
+                    }
+                }
+            }
+        }
+    }
+    finished_path.score
+}
+
+fn p2(graph: &Graph) -> usize {
+    // if we're in the same place, and have visited the same nodes, ignore worse
+    let mut dedup_lookup: HashMap<(NodeId, NodeId, u64), usize> = HashMap::default();
+
+    let dummy_path = P2Path::new(graph);
+    let mut paths = Queue::new();
+    paths.push(dummy_path);
+    let mut finished_path = P2Path::new(graph);
+
+    while let Some(top) = paths.pop() {
+        if top < finished_path {
+            finished_path = top.clone();
+        }
+
+        let mut candidates = vec![];
+
+        if top.all_valves_on(graph) {
+            // we're done, this path can have no more children
+        } else {
+            for non_zero_node in remaining_nodes(top.remaining_nodes) {
+                let (your_node, elephant_node) = (
+                    top.path.you.valves.last().unwrap_or(&graph.start),
+                    top.path.elephant.valves.last().unwrap_or(&graph.start),
+                );
+                // there's no point adding a given node to the further away path
+                let your_travel_time = graph.routes_with_dist[&(*your_node, non_zero_node)] + 1;
+                let elephant_travel_time =
+                    graph.routes_with_dist[&(*elephant_node, non_zero_node)] + 1;
+                if your_travel_time < elephant_travel_time {
+                    if let Some(candidate) =
+                        top.update(graph, non_zero_node, true, Some(your_travel_time))
+                    {
+                        candidates.push(candidate);
+                    }
+                } else if let Some(candidate) =
+                    top.update(graph, non_zero_node, false, Some(elephant_travel_time))
+                {
+                    candidates.push(candidate);
+                }
+            }
+        }
+
+        for candidate in candidates {
+            if update_dedup_cache_p2(graph, &mut dedup_lookup, &candidate, finished_path.score) {
+                paths.push(candidate);
+            }
+        }
+    }
+    finished_path.score
+}
+
+type P1Path = Path<P1RawPath>;
+type P2Path = Path<P2RawPath>;
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct P1RawPath {
+    valves: Vec<NodeId>,
+    time_so_far: usize,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct P2RawPath {
+    you: P1RawPath,
+    elephant: P1RawPath,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct Path<P> {
+    path: P,
+
+    // cache
+    score: usize,
+    score_increment_so_far: usize,
+    score_so_far: usize,
+    remaining_nodes: u64,
+}
+impl<P: Eq> Ord for Path<P> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.score()
-            .cmp(&other.score())
-            // bigger is better
-            .reverse()
+        // backwards for min pqueue
+        other.score.cmp(&self.score)
     }
 }
 
-impl PartialOrd for Path {
-    // we should do something on a tie maybe
+impl<P: Eq> PartialOrd for Path<P> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
-impl Path {
+impl<P: Default> Path<P> {
     fn new(graph: &Graph) -> Self {
-        Path {
-            heuristic: 0,
-            actions: vec![],
-            action_score: 0,
-            action_score_increment: 0,
-            current_node: "AA".to_string(),
-            on_nodes: HashSet::new(),
-            sorted_off_nonzero_nodes: graph.sorted_nodes.clone(),
-            visited_since_last_turnon: HashSet::new(),
-            previous_positions: HashMap::new(),
+        Self {
+            path: P::default(),
+            score: 0,
+            score_increment_so_far: 0,
+            score_so_far: 0,
+            remaining_nodes: graph.non_zero_nodes,
         }
     }
-    // if none, then it was a stupid move
-    fn update(&self, graph: &Graph, action: String) -> Option<Self> {
-        let mut new_self = self.clone();
-        if action == "" {
-            if graph.nodes[&self.current_node].0 > 0
-                && new_self.on_nodes.insert(self.current_node.clone())
-            {
-                new_self.action_score_increment += graph.nodes[&self.current_node].0;
-                // let's keep front of the list of off nodes updated too
-                while new_self
-                    .sorted_off_nonzero_nodes
-                    .last()
-                    .as_ref()
-                    .map(|last| new_self.on_nodes.contains(*last))
-                    .unwrap_or(false)
-                {
-                    new_self.sorted_off_nonzero_nodes.pop();
-                }
+    fn all_valves_on(&self, _graph: &Graph) -> bool {
+        self.remaining_nodes == 0
+    }
+}
 
-                new_self.visited_since_last_turnon = HashSet::new();
+impl P1Path {
+    fn update(&self, graph: &Graph, dest: NodeId) -> Option<Self> {
+        let current_node = self.path.valves.last().unwrap_or(&graph.start);
+        let travel_time = graph.routes_with_dist[&(*current_node, dest)];
+        let dt = travel_time + 1; // got to turn valve on
+
+        if self.path.time_so_far + dt <= 30 {
+            let mut new_self = self.clone();
+            new_self.path.valves.push(dest);
+            new_self.remaining_nodes ^= 1 << dest.0;
+
+            new_self.score_so_far += dt * self.score_increment_so_far;
+            new_self.path.time_so_far += dt;
+            new_self.score_increment_so_far += graph.nodes[&dest].weight;
+
+            let new_score = new_self.score(graph);
+            new_self.score = new_score;
+            Some(new_self)
+        } else {
+            None
+        }
+    }
+
+    fn score(&self, _graph: &Graph) -> usize {
+        let remaining_time = 30 - self.path.time_so_far;
+        self.score_so_far + remaining_time * self.score_increment_so_far
+    }
+}
+
+impl P2Path {
+    fn update(
+        &self,
+        graph: &Graph,
+        dest: NodeId,
+        your_move: bool,
+        known_dist: Option<usize>,
+    ) -> Option<Self> {
+        // how long will it take us to get there
+        let valves = if your_move {
+            &self.path.you.valves
+        } else {
+            &self.path.elephant.valves
+        };
+
+        let current_node = valves.last().unwrap_or(&graph.start);
+
+        let travel_dt = known_dist.unwrap_or_else(|| {
+            let travel_time = graph.routes_with_dist[&(*current_node, dest)];
+            travel_time + 1 // got to turn valve on
+        });
+
+        let (time_so_far, other_time_so_far) = if your_move {
+            (self.path.you.time_so_far, self.path.elephant.time_so_far)
+        } else {
+            (self.path.elephant.time_so_far, self.path.you.time_so_far)
+        };
+
+        let new_time = max(time_so_far + travel_dt, other_time_so_far);
+        let old_time = max(time_so_far, other_time_so_far);
+        let dt = new_time - old_time;
+        if time_so_far + travel_dt <= 26 {
+            // okay now update everything
+            let mut new_self = self.clone();
+            if your_move {
+                new_self.path.you.valves.push(dest);
+                new_self.path.you.time_so_far += travel_dt;
             } else {
-                // it was a stupid move i.e. turning on a zero cost node, or
-                // turning on one that was already on so fuck off
-                return None;
+                new_self.path.elephant.valves.push(dest);
+                new_self.path.elephant.time_so_far += travel_dt;
             }
+            new_self.remaining_nodes ^= 1 << dest.0;
+            new_self.score_so_far += dt * self.score_increment_so_far;
+            new_self.score_increment_so_far += graph.nodes[&dest].weight;
+
+            let new_score = new_self.score(graph);
+            new_self.score = new_score;
+
+            Some(new_self)
         } else {
-            // do we have a pointless loop?
-            if !new_self.visited_since_last_turnon.insert(action.clone()) {
-                return None;
-            }
-            new_self.current_node = action.clone();
+            None
         }
+    }
 
-        new_self.actions.push(action);
-        new_self.action_score += self.action_score_increment; // old increment
-        new_self.heuristic = new_self.score() as isize      //  * 100
-         // - cumulative_weighted_cost_to_visit_off_nodes(graph, &new_self.on_nodes, new_self.current_node.clone()) as isize
-                                                        // * (30-new_self.actions.len()as isize)
-                                                        // * 10000
-                                                        // + new_self.on_nodes.len()as isize
-        - new_self
-            .sorted_off_nonzero_nodes
-            .last()
-            .as_ref()
-            .map(|last| {
-                shortest_path_to_node(graph, new_self.current_node.clone(), (*last).clone()).len() as isize
-                * graph.nodes[last.clone()].0 as isize
-            })
-            .unwrap_or(-1); // if there's no nodes left to visit, this is a good path
-                            // * (30-new_self.actions.len()as isize)
+    fn score(&self, _graph: &Graph) -> usize {
+        let remaining_time = 26 - max(self.path.you.time_so_far, self.path.elephant.time_so_far);
+        self.score_so_far + remaining_time * self.score_increment_so_far
+    }
+}
 
-        //     *10
-        // -new_self.actions.len() as isize;        // longer for no reason is bad
-        // (Vec<String>, String)
-        let mut x = new_self.on_nodes.iter().cloned().collect::<Vec<_>>();
-        x.sort();
-        let position = (x, new_self.current_node.clone());
-        match new_self.previous_positions.entry(position) {
-            Entry::Occupied(mut old_entry) => {
-                if *old_entry.get() < new_self.action_score {
-                    old_entry.insert(new_self.action_score);
+fn update_dedup_cache_p1(
+    dedup_lookup: &mut HashMap<(NodeId, u64), usize>,
+    candidate: &P1Path,
+) -> bool {
+    if let Some(&your_node) = candidate.path.valves.last() {
+        match dedup_lookup.entry((your_node, candidate.remaining_nodes)) {
+            Entry::Vacant(entry) => {
+                entry.insert(candidate.score);
+                true
+            }
+            Entry::Occupied(mut entry) => {
+                let old_score = entry.get_mut();
+                if *old_score < candidate.score {
+                    *old_score = candidate.score;
+                    true
                 } else {
-                    return None; // it's worse than the old way
+                    false
                 }
             }
-            Entry::Vacant(x) => {
-                x.insert(new_self.action_score);
-            }
         }
-
-        Some(new_self)
-    }
-
-    fn all_valves_on(&self, graph: &Graph) -> bool {
-        // self.on_nodes
-        //     .difference(&HashSet::from_iter(graph.sorted_nodes.iter().cloned()))
-        //     .next()
-        //     .is_none()
-        self.sorted_off_nonzero_nodes.is_empty()
-    }
-
-    fn score(&self) -> usize {
-        let remaining_turns = 30 - self.actions.len();
-        self.action_score + remaining_turns * self.action_score_increment
+    } else {
+        false
     }
 }
 
-// we can do way better than this come on
-fn cumulative_weighted_cost_to_visit_off_nodes(
+fn update_dedup_cache_p2(
     graph: &Graph,
-    on_nodes: &HashSet<String>,
-    current_node: String,
-) -> usize {
-    let mut score = 0;
-    for (k, v) in &graph.nodes {
-        if v.0 != 0 && !on_nodes.contains(k) {
-            score += v.0 * shortest_path_to_node(graph, current_node.clone(), k.clone()).len();
-        }
-    }
-    score
-}
-
-fn shortest_path_to_node(graph: &Graph, current_node: String, target_node: String) -> Vec<String> {
-    bfs(
-        &current_node,
-        |node: &String| graph.nodes[node].1.iter().cloned(),
-        |node: &String| *node == target_node,
-    )
-    .unwrap()
-}
-
-fn main() {
-    let graph = parse();
-    let dummy_path = Path::new(&graph);
-    let mut paths = Queue::new();
-    paths.push(dummy_path);
-    let mut finished_path = Path::new(&graph);
-
-    let algo_start = Instant::now();
-
-    while let Some(top) = paths.pop() {
-        // currently we just keep searching until we've hit every path with length 30
-        // but we can finish early if we turned all valves on because there's nothing left to do
-        if top.actions.len() == 30 || top.all_valves_on(&graph) {
-            let top_score = top.score();
-            finished_path = min(finished_path, top);
-            if top_score > 1747 {
-                break;
+    dedup_lookup: &mut HashMap<(NodeId, NodeId, u64), usize>,
+    candidate: &P2Path,
+    max_score: usize,
+) -> bool {
+    if let (Some(&your_node), Some(&elephant_node)) = (
+        candidate.path.you.valves.last(),
+        candidate.path.elephant.valves.last(),
+    ) {
+        let score_upper_bound = upper_bound(candidate, graph);
+        if score_upper_bound >= max_score {
+            match dedup_lookup.entry((your_node, elephant_node, candidate.remaining_nodes)) {
+                Entry::Vacant(entry) => {
+                    entry.insert(candidate.score);
+                    true
+                }
+                Entry::Occupied(mut entry) => {
+                    let old_score = entry.get_mut();
+                    if *old_score < candidate.score {
+                        *old_score = candidate.score;
+                        true
+                    } else {
+                        false
+                    }
+                }
             }
         } else {
-            // get neighbours, push to pqueue
-            for tunnel in &graph.nodes[&top.current_node].1 {
-                if let Some(new_candidate) = top.update(&graph, tunnel.clone()) {
-                    paths.push(new_candidate);
-                }
-            }
-            if let Some(new_candidate) = top.update(&graph, "".to_string()) {
-                paths.push(new_candidate);
-            }
+            false
+        }
+    } else {
+        true
+    }
+}
+
+fn upper_bound(candidate: &P2Path, graph: &Graph) -> usize {
+    // what's the best possible score this node can get? that's if
+    // we go to the nearest node, then all the rest are immediately after that one
+    // from largest to smallest
+    let mut extra_score = 0;
+    let mut extra_increment = 0;
+
+    let mut remaining_time = 26
+        - min(
+            candidate.path.elephant.time_so_far,
+            candidate.path.you.time_so_far,
+        );
+
+    let mut node_dists = vec![];
+    let mut remaining_candidates = vec![];
+    for node_id in remaining_nodes(candidate.remaining_nodes) {
+        let weight = graph.nodes[&node_id].weight;
+
+        if let (Some(&your_node), Some(&elephant_node)) = (
+            candidate.path.you.valves.last(),
+            candidate.path.elephant.valves.last(),
+        ) {
+            let your_travel_time = graph.routes_with_dist[&(your_node, node_id)] + 1;
+            let elephant_travel_time = graph.routes_with_dist[&(elephant_node, node_id)] + 1;
+            node_dists.push((
+                min(your_travel_time, elephant_travel_time),
+                -(weight as isize),
+            ));
+        }
+
+        remaining_candidates.push(weight);
+    }
+
+    node_dists.sort();
+    remaining_candidates.sort();
+
+    if !node_dists.is_empty() && remaining_time >= node_dists[0].0 {
+        remaining_time -= node_dists[0].0;
+        extra_increment += (-node_dists[0].1) as usize;
+    }
+
+    while remaining_time > 1 {
+        if let Some(biggest_weight) = remaining_candidates.pop() {
+            extra_score += 2 * extra_increment;
+            extra_increment += biggest_weight;
+            remaining_time -= 2;
+        } else {
+            break;
         }
     }
-    // let mut max_score = 0;
-    // for path in &finished_paths {
-    //     max_score = max(max_score, path.score());
-    //     println!("{}", path.score());
-    // }
-    let done = Instant::now();
-    println!("{}: {:?}", finished_path.score(), finished_path);
-    println!("{:?}", done - algo_start);
-    // println!("{}", max_score);
 
-    // let test_actions = vec![
-    //     "DD".to_string(),
-    //     "".to_string(),
-    //     "CC".to_string(),
-    //     "BB".to_string(),
-    //     "".to_string(),
-    //     "AA".to_string(),
-    //     "II".to_string(),
-    //     "JJ".to_string(),
-    //     "".to_string(),
-    //     "II".to_string(),
-    //     "AA".to_string(),
-    //     "DD".to_string(),
-    //     "EE".to_string(),
-    //     "FF".to_string(),
-    //     "GG".to_string(),
-    //     "HH".to_string(),
-    //     "".to_string(),
-    //     "GG".to_string(),
-    //     "FF".to_string(),
-    //     "EE".to_string(),
-    //     "".to_string(),
-    //     "DD".to_string(),
-    //     "CC".to_string(),
-    //     "".to_string(),
-    // ];
+    candidate.score + extra_score + remaining_time * extra_increment
+}
 
-    // let mut test_path = Path::new(&graph);
-    // for test_move in test_actions {
-    //     test_path = test_path.update(&graph, test_move).unwrap();
-    // }
-    // let score = test_path.score();
-    // assert_eq!(score, 1651);
+fn remaining_nodes(remaining_nodes: u64) -> impl Iterator<Item = NodeId> {
+    (0..60)
+        .filter(move |i| 1 << i & remaining_nodes != 0)
+        .map(NodeId)
 }
 
 // urgh
-fn parse() -> Graph {
-    let mut nodes = HashMap::new();
-    let mut non_zero_nodes = Vec::new();
+fn parse(input: &str) -> Graph {
+    let mut nodes = HashMap::default();
+    let mut non_zero_nodes = 0u64;
+    let mut start = None;
+    let mut name_lookup = HashMap::default();
 
-    for line in INPUT.lines() {
-        let mut id = String::new();
+    // this is a huge hack lol
+    for (id, line) in input.lines().enumerate() {
+        let mut id_str = String::new();
+        let mut whatever = String::new();
+        sscanf!(line, "Valve {} has {}", id_str, whatever,).unwrap();
+        name_lookup.insert(id_str, NodeId(id));
+    }
+
+    for (id, line) in input.lines().enumerate() {
+        let mut id_str = String::new();
         let mut flow = 0;
         let mut targets_str = String::new();
-        sscanf!(line, "Valve {} has flow rate={}; {}", id, flow, targets_str).unwrap();
+        sscanf!(
+            line,
+            "Valve {} has flow rate={}; {}",
+            id_str,
+            flow,
+            targets_str
+        )
+        .unwrap();
+        let id = NodeId(id);
+
+        if id_str == "AA" {
+            start = Some(id);
+        }
         targets_str = targets_str.strip_prefix("tunnel").unwrap().to_string();
-        if let Some(s) = targets_str.strip_prefix("s") {
+        if let Some(s) = targets_str.strip_prefix('s') {
             targets_str = s.to_string();
         }
         targets_str = targets_str.strip_prefix(" lead").unwrap().to_string();
 
-        if let Some(s) = targets_str.strip_prefix("s") {
+        if let Some(s) = targets_str.strip_prefix('s') {
             targets_str = s.to_string();
         }
         targets_str = targets_str.strip_prefix(" to valve").unwrap().to_string();
-        if let Some(s) = targets_str.strip_prefix("s") {
+        if let Some(s) = targets_str.strip_prefix('s') {
             targets_str = s.to_string();
         }
-        let mut targets = vec![];
-        for target in targets_str.split(',') {
-            targets.push(target.trim().to_string());
+        let mut connections = vec![];
+        for target_str in targets_str.split(',') {
+            connections.push(name_lookup[target_str.trim()]);
         }
         if flow > 0 {
-            non_zero_nodes.push(id.clone());
+            non_zero_nodes |= 1 << id.0;
         }
-        nodes.insert(id, (flow, targets));
+        nodes.insert(
+            id,
+            Node {
+                weight: flow, // usize,
+                connections,  // Vec<usize>,
+                              // name: id_str, // String
+            },
+        );
     }
-    non_zero_nodes.sort();
+
+    // fixme: we should take advantage of this being bidirectional
+    // fixme: floyd-warshall?
+    let mut routes_with_dist = HashMap::default();
+
+    for node_id_start in remaining_nodes(non_zero_nodes) {
+        let all_reachable = dijkstra_all(&node_id_start, |node: &NodeId| {
+            nodes[node].connections.iter().map(|x| (*x, 1))
+        });
+        for (node_id_end, (_, cost)) in all_reachable {
+            routes_with_dist.insert((node_id_start, node_id_end), cost);
+        }
+    }
+
+    let all_reachable = dijkstra_all(start.as_ref().unwrap(), |node: &NodeId| {
+        nodes[node].connections.iter().map(|x| (*x, 1))
+    });
+    for (node_id_end, (_, cost)) in all_reachable {
+        routes_with_dist.insert((start.unwrap(), node_id_end), cost);
+    }
+
     Graph {
+        start: start.unwrap(),
         nodes,
-        sorted_nodes: non_zero_nodes,
+        routes_with_dist,
+        // name_lookup,
+        non_zero_nodes,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_score() {
+        let graph = parse(TEST);
+
+        let test_actions = vec![
+            "DD".to_string(),
+            "BB".to_string(),
+            "JJ".to_string(),
+            "HH".to_string(),
+            "EE".to_string(),
+            "CC".to_string(),
+        ];
+
+        let mut test_path = Path::new(&graph);
+        for test_move in test_actions {
+            test_path = test_path
+                .update(&graph, graph.name_lookup[&test_move])
+                .unwrap();
+        }
+        let score = test_path.score(&graph);
+        assert_eq!(score, 1651);
+        assert_eq!(test_path.score, 1651);
     }
 }
 
